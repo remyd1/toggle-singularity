@@ -1,0 +1,139 @@
+Bootstrap: docker
+From: ubuntu:16.04
+IncludeCmd: yes
+
+%environment
+    PERL5LIB=/usr/local/lib/perl5
+    TOGGLE_VERSION=0.3.5
+    INSTALLPATH=/usr/local/bin
+    export TOGGLE_VERSION
+    export PERL5LIB
+    export INSTALLPATH
+    export LIBRARY_PATH
+
+%labels
+    Author Remy Dernat <remy.d1@gmail.com>
+    Version 0.0.1
+    Toggle_version 0.3.5
+    build_date 2018 Feb 02
+
+# not using appinstall b/c everything is in a huge bin.tar.gz
+
+%apprun TOGGLE
+    exec perl /usr/local/bin/TOGGLE/toggleGenerator.pl
+
+%applabels CutAdapt
+    CutAdapt_license https://github.com/marcelm/cutadapt/blob/master/LICENSE
+    CutAdapt_Cite http://journal.embnet.org/index.php/embnetjournal/article/view/200
+#%apprun CutAdapt
+
+%applabels bwa
+    bwa_license http://sourceforge.net/projects/bio-bwa/
+    bwa_cite http://www.ncbi.nlm.nih.gov/pubmed/19451168
+
+%applabels SAMtools
+    SAMtools_license http://sourceforge.net/projects/samtools/
+    SAMtools_cite http://www.ncbi.nlm.nih.gov/pubmed/19505943
+
+%applabels Picard-tools
+    Picard-Tools_license No explicit License
+    Picard-Tools_cite Cite SAMtools paper and their site http://broadinstitute.github.io/picard/
+
+%applabels FastQC
+    FastQC_license http://www.bioinformatics.babraham.ac.uk/projects/fastqc/
+    FastQC_cite http://www.bioinformatics.bbsrc.ac.uk/projects/fastqc/
+
+%applabels GATK
+    GATK_license https://github.com/broadgsa/gatk-protected/
+    GATK_cite1 http://www.ncbi.nlm.nih.gov/pubmed?term=20644199
+    GATK_cite2 http://www.ncbi.nlm.nih.gov/pubmed?term=21478889
+    GATK_cite3 http://onlinelibrary.wiley.com/doi/10.1002/0471250953.bi1110s43/abstract;jsessionid=D95C25686A6F9F397B710DE983CE10D8.f03t02
+
+%applabels TopHat
+    TopHat_license https://github.com/infphilo/tophat/blob/master/LICENSE
+    TopHat_cite http://bioinformatics.oxfordjournals.org/content/25/9/1105.abstract
+
+%applabels Bowtie2
+    Bowtie2_license http://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.2.5/
+    Bowtie2_cite http://www.nature.com/nmeth/journal/v9/n4/full/nmeth.1923.html
+
+%applabels FASTX-Trimmer
+    FASTX-Trimmer_license http://hannonlab.cshl.edu/fastx_toolkit/license.html
+    FASTX-Trimmer_cite http://hannonlab.cshl.edu/fastx_toolkit/
+
+%applabels TOGGLE
+    TOGGLE_license https://github.com/SouthGreenPlatform/TOGGLE/blob/master/LICENSE
+    TOGGLE_cite Monat et al, TOGGLE: toolbox for generic NGS analyses, BMC Bioinformatics, 2015, 16:374
+
+
+%post
+    PERL5LIB=/usr/local/lib/perl5
+    TOGGLE_VERSION=0.3.5
+    INSTALLPATH=/usr/local/bin
+    echo "Define some vars..."
+    MODULESPATH=${INSTALLPATH}"/Modules"
+    BINARIES=${INSTALLPATH}
+    TOGGLEPATH=${INSTALLPATH}/TOGGLE
+    JAVAPATH="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
+    echo "Perl Modules PATH:"$MODULESPATH
+    echo "Binaries are located in :"$BINARIES
+    echo "Toggle is located here:"$TOGGLEPATH
+    echo "java PATH:"$JAVAPATH
+
+    apt-get update
+    apt-get install -y gcc g++ make git patch perl libperl-dev curl wget
+    apt-get install -y openjdk-8-jre tar unzip python build-essential python-dev
+    apt-get install -y libz1 libz-dev cpanminus libncurses5-dev
+    cpanm Capture::Tiny Data::Translate Data::Dumper Getopt::ArgParse List::Compare Switch Test::More Test::Deep
+
+    mkdir -p ${INSTALLPATH}
+    mkdir -p ${MODULESPATH}
+
+    wget -O ${INSTALLPATH}/toggle.0.3.5.zip https://github.com/SouthGreenPlatform/TOGGLE/archive/${TOGGLE_VERSION}.zip
+    wget -O ${INSTALLPATH}/bin.tar.gz http://bioinfo-web.mpl.ird.fr/toggle/bin.tar.gz
+    wget -O ${INSTALLPATH}/perlModules.tar.gz http://bioinfo-web.mpl.ird.fr/toggle/perlModules.tar.gz
+    wget -O ${INSTALLPATH}/BAK_localConfig.pm http://bioinfo-web.mpl.ird.fr/toggle/BAK_localConfig.pm
+
+    cd ${INSTALLPATH}
+    unzip toggle.${TOGGLE_VERSION}.zip
+    tar xf perlModules.tar.gz
+    tar xf bin.tar.gz
+    mv ${INSTALLPATH}/binNEW/* ${INSTALLPATH}/
+    mv perlModules/* ${MODULESPATH}/
+    rm -rf perlModules binNEW
+
+    ln -s ${INSTALLPATH}/TOGGLE-${TOGGLE_VERSION} ${INSTALLPATH}/TOGGLE_${TOGGLE_VERSION}
+    ln -s ${INSTALLPATH}/TOGGLE-${TOGGLE_VERSION} ${TOGGLEPATH}
+    ln -s /usr/local/lib/x86_64-linux-gnu/perl/5* ${PERL5LIB}
+
+    cd ${BINARIES}/bwa && make
+    cd ${BINARIES}/samtools && ./configure && make
+    cd ${BINARIES}/cutadapt && python setup.py build_ext -i
+
+    rm -f ${TOGGLEPATH}/modules/localConfig.pm
+    cp ${INSTALLPATH}/BAK_localConfig.pm ${MODULESPATH}/localConfig.pm
+
+    ln -s ${TOGGLEPATH}/modules/* ${PERL5LIB}/
+    ln -s ${MODULESPATH}/* ${PERL5LIB}/
+
+    sed -i "s|togglepath|${TOGGLEPATH}|g" ${MODULESPATH}/localConfig.pm
+    sed -i "s|java7|${JAVAPATH}|g" ${MODULESPATH}/localConfig.pm
+    sed -i "s|bwabinary|${BINARIES}/bwa/bwa|g" ${MODULESPATH}/localConfig.pm
+    sed -i "s|cutadaptbinary|${BINARIES}/cutadapt/bin/cutadapt|g" ${MODULESPATH}/localConfig.pm
+    sed -i "s|samtoolsbinary|${BINARIES}/samtools/samtools|g" ${MODULESPATH}/localConfig.pm
+    sed -i "s|picardbinary|${BINARIES}/picard-tools|g" ${MODULESPATH}/localConfig.pm
+    sed -i "s|fastqcbinary|${BINARIES}/FastQC/fastqc|g" ${MODULESPATH}/localConfig.pm
+    sed -i "s|GATKbinary|${BINARIES}/GenomeAnalysisTK/GenomeAnalysisTK.jar|g" ${MODULESPATH}/localConfig.pm
+    sed -i "s|tophat2binary|${BINARIES}/tophat/tophat2|g" ${MODULESPATH}/localConfig.pm
+    sed -i "s|bowtie2-buildbinary|${BINARIES}/bowtie2/bowtie2-build|g" ${MODULESPATH}/localConfig.pm
+    sed -i "s|bowtie-buildbinary|${BINARIES}/bowtie/bowtie-build|g" ${MODULESPATH}/localConfig.pm
+    sed -i "s|fastx_trimmerbinary|${BINARIES}/fastx_toolkit/fastx_trimmer|g" ${MODULESPATH}/localConfig.pm
+    echo "TOGGLE_PATH=/usr/local/bin/TOGGLE:/usr/local/bin/CutAdapt:/usr/local/bin/samtools:/usr/local/bin/bwa:/usr/local/bin/bowtie2:/usr/local/bin/tophat:/usr/local/bin/GenomeAnalysisTK:/usr/local/bin/picard-tools" > /etc/profile.d/toggle.sh
+    echo "export TOGGLE_PATH" >> /etc/profile.d/toggle.sh
+
+
+%runscript
+    exec perl /usr/local/bin/TOGGLE/toggleGenerator.pl "$@"
+
+#%test
+#    perl /usr/local/bin/TOGGLE/toggleGenerator.pl --help
