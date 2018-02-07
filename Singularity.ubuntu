@@ -2,14 +2,14 @@ Bootstrap: docker
 From: ubuntu:16.04
 IncludeCmd: yes
 
+# environment is available at runtime (not buildtime since singularity 2.4.2+)
 %environment
     PERL5LIB=/usr/local/lib/perl5
     TOGGLE_VERSION=0.3.5
-    INSTALLPATH=/usr/local/bin
+    PATH=$PATH:/usr/local/bin/TOGGLE:/usr/local/bin/CutAdapt:/usr/local/bin/samtools:/usr/local/bin/bwa:/usr/local/bin/bowtie2:/usr/local/bin/tophat:/usr/local/bin/GenomeAnalysisTK:/usr/local/bin/picard-tools
     export TOGGLE_VERSION
     export PERL5LIB
-    export INSTALLPATH
-    export LIBRARY_PATH
+    export PATH
 
 %labels
     Author Remy Dernat <remy.d1@gmail.com>
@@ -128,8 +128,6 @@ IncludeCmd: yes
     sed -i "s|bowtie2-buildbinary|${BINARIES}/bowtie2/bowtie2-build|g" ${MODULESPATH}/localConfig.pm
     sed -i "s|bowtie-buildbinary|${BINARIES}/bowtie/bowtie-build|g" ${MODULESPATH}/localConfig.pm
     sed -i "s|fastx_trimmerbinary|${BINARIES}/fastx_toolkit/fastx_trimmer|g" ${MODULESPATH}/localConfig.pm
-    echo "TOGGLE_PATH=/usr/local/bin/TOGGLE:/usr/local/bin/CutAdapt:/usr/local/bin/samtools:/usr/local/bin/bwa:/usr/local/bin/bowtie2:/usr/local/bin/tophat:/usr/local/bin/GenomeAnalysisTK:/usr/local/bin/picard-tools" > /etc/profile.d/toggle.sh
-    echo "export TOGGLE_PATH" >> /etc/profile.d/toggle.sh
 
 
 %runscript
